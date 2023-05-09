@@ -9,7 +9,7 @@ public class Ej1 {
         String password="1234";
         try (Connection con = DriverManager.getConnection(url,usuario,password);Statement consulta = con.createStatement()) {
 
-            ResultSet resultados = consulta.executeQuery("select productLine, textDescription from productLine");
+            ResultSet resultados = consulta.executeQuery("select productLine, textDescription from productlines");
 
             while (resultados.next()){
                 System.out.println(resultados.getString("productLine") + " " + resultados.getString("textDescription"));
