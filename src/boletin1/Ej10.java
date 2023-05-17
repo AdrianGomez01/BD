@@ -2,6 +2,7 @@ package boletin1;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Scanner;
 
 import dataBaseConnection.DataBaseConnection;
@@ -20,6 +21,7 @@ public class Ej10 {
         }
         */
 
+        realizarPedido();
 
     }
 
@@ -95,30 +97,10 @@ public class Ej10 {
 
     public static boolean realizarPedido() {
 
-        try (Connection con = DataBaseConnection.getInstance().getCon();
-             Statement consultaClientes = con.createStatement();
-             Scanner sc = new Scanner(System.in);
-        ) {
+        try (Connection con = DataBaseConnection.getInstance().getCon()) {
 
-            //Consultamos los numeros y nombres de todos los clientes
-            ResultSet resultadoClientes = consultaClientes.executeQuery("SELECT customerNumber, customerName from customers");
-
-            //Creamos un array para guardar los numeros de cliente de nuestros clientes
-            ArrayList<Integer> arrayClientes = new ArrayList<Integer>();
-
-            while (resultadoClientes.next()) {
-                System.out.printf("%d : %s\n", resultadoClientes.getInt("customerNumber"),
-                        resultadoClientes.getString("customerName"));
-                //Anhadimos al array el num de cliente de todos los clientes
-                arrayClientes.add(resultadoClientes.getInt(1));
-            }
-
-            int numCliente = -1;
-            //Mientras que el array no contenga el numero de cliente escrito por teclado sigue pidiendolo
-            do {
-                System.out.println("Elija uno de los clientes");
-                numCliente = Integer.parseInt(sc.nextLine());
-            } while (!arrayClientes.contains(numCliente));
+            int numCliente = getNumeroCliente(con);
+            String categoria = getCategoria(con);
 
 
         } catch (SQLException e) {
@@ -127,4 +109,100 @@ public class Ej10 {
 
         return false;
     }
+
+    /**
+     * Este método pide un numero de cliente al usuario, comprobando si existe en la BD y devolviendolo
+     *
+     * @param con - Conexion a la base de datos que tenemos que proporcionar.
+     * @return - numero del cliente
+     */
+    public static int getNumeroCliente(Connection con) {
+        try (Statement consultaClientes = con.createStatement()) {
+
+            //Consultamos los numeros y nombres de todos los clientes
+            ResultSet resultadoClientes = consultaClientes.executeQuery("SELECT customerNumber, customerName from customers");
+
+            //Creamos un HasMap para guardar los numeros de cliente de nuestros clientes, y así posteriormente acceder
+            // rapidamente al nombre del cliente segun su numero de cliente
+
+            HashMap<Integer, String> arrayClientes = new HashMap<>();
+
+            while (resultadoClientes.next()) {
+                System.out.printf("%d : %s\n", resultadoClientes.getInt("customerNumber"),
+                        resultadoClientes.getString("customerName"));
+
+                //Anhadimos al HasMap el num de cliente de todos los clientes y el nombre asociado.
+                arrayClientes.put(resultadoClientes.getInt("customerNumber"),
+                        resultadoClientes.getString("customerName"));
+            }
+
+            int numCliente = -1;
+            //Mientras que el HasMap no contenga el numero de cliente escrito por teclado sigue pidiendolo
+            do {
+                System.out.println("Elija uno de los clientes");
+                numCliente = Integer.parseInt(sc.nextLine());
+
+                //Mientras que el array no contenga el cliente escrito por teclado saltará el siguiente mensaje
+                if (!arrayClientes.containsKey(numCliente)) {
+                    System.out.println("El cliente introducido no se encuentra en la base de datos");
+                } else {
+                    //Al pedirle la clave numCliente nos devuelve el valor asociado a esa clave, en este caso el nombre.
+                    System.out.println("Se ha seleccionado el cliente numero " + arrayClientes.get(numCliente));
+                }
+            } while (!arrayClientes.containsKey(numCliente));
+
+            return numCliente;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Este metodo nos muestra todas las categorias y nos pide que introduzcamos una
+     *
+     * @param con
+     * @return
+     */
+    public static String getCategoria(Connection con) {
+
+        try (Statement consultaCategorias = con.createStatement()) {
+
+            ResultSet listadoCategorias = consultaCategorias.executeQuery("SELECT productline , textDescription from productLines");
+
+            HashMap<String, String> mapCategorias = new HashMap<>();
+
+            while (listadoCategorias.next()) {
+                System.out.printf("%s : %s\n", listadoCategorias.getString("productline"),
+                        listadoCategorias.getString("textDescription"));
+
+                //Anhadimos al HasMap el num de cliente de todos los clientes y el nombre asociado.
+                mapCategorias.put(listadoCategorias.getString("productline"),
+                        listadoCategorias.getString("textDescription"));
+            }
+
+            String nombreCategoria;
+            //Mientras que el HasMap no contenga el numero de cliente escrito por teclado sigue pidiendolo
+            do {
+                System.out.println("Elija una de las siguientes categorias: ");
+                nombreCategoria = sc.nextLine();
+
+                //Mientras que el array no contenga el cliente escrito por teclado saltará el siguiente mensaje
+                if (!mapCategorias.containsKey(nombreCategoria)) {
+                    System.out.println("La categoria introducida no se encuentra en la base de datos");
+                } else {
+                    //Al pedirle la clave numCliente nos devuelve el valor asociado a esa clave, en este caso el nombre.
+                    System.out.println("Se ha seleccionado la categoria " + nombreCategoria);
+                }
+            } while (!mapCategorias.containsKey(nombreCategoria));
+
+            return nombreCategoria;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+
 }
