@@ -100,8 +100,18 @@ public class Ej10 {
         try (Connection con = DataBaseConnection.getInstance().getCon()) {
 
             int numCliente = getNumeroCliente(con);
+            String continuar = "Si";
+
+            //Esta es una transaccion , para que cada consulta que haga se mande al servidor, de modo que cada vez
+            // que se añada un producto se actualice en el servidor
+            con.setAutoCommit(false);
+
+            while (continuar.equalsIgnoreCase("Si")){
             String categoria = getCategoria(con);
-            String codProducto = getCodProducto(con,categoria);
+            String codProducto = getCodProducto(con, categoria);
+                System.out.println("¿Quiere continuar?");
+                continuar = UserDataCollector.getStringDeOpciones("¿Quiere continuar?",new String[]{"Si","No"});
+            }
 
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -206,12 +216,20 @@ public class Ej10 {
     }
 
 
-    public static String getCodProducto(Connection con, String categoria){
+    /**
+     * Este metodo nos mostrará los productos de una categoria pedida por parametro,
+     * y luego nos pedira el cod producto de uno de los productos
+     *
+     * @param con       - conexion a la BD
+     * @param categoria - Categoria a la que van a pertenecer los productos
+     * @return - devuelve el cod de producto seleccionado
+     */
+    public static String getCodProducto(Connection con, String categoria) {
 
         try (PreparedStatement consultaProductos = con.prepareStatement
                 ("SELECT productCode, productName, MSRP from products WHERE productLine = ?")) {
 
-            consultaProductos.setString(1,categoria);
+            consultaProductos.setString(1, categoria);
             ResultSet listadoProductos = consultaProductos.executeQuery();
 
             ArrayList<String> arrayProductos = new ArrayList<>();
@@ -245,5 +263,6 @@ public class Ej10 {
         }
 
     }
+
 
 }
