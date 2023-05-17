@@ -101,7 +101,7 @@ public class Ej10 {
 
             int numCliente = getNumeroCliente(con);
             String categoria = getCategoria(con);
-
+            String codProducto = getCodProducto(con,categoria);
 
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -206,11 +206,13 @@ public class Ej10 {
     }
 
 
-    public static String getCodProducto(Connection con){
+    public static String getCodProducto(Connection con, String categoria){
 
-        try (Statement consultaProductos = con.createStatement()) {
+        try (PreparedStatement consultaProductos = con.prepareStatement
+                ("SELECT productCode, productName, MSRP from products WHERE productLine = ?")) {
 
-            ResultSet listadoProductos = consultaProductos.executeQuery("SELECT productCode, productName, MSRP from products");
+            consultaProductos.setString(1,categoria);
+            ResultSet listadoProductos = consultaProductos.executeQuery();
 
             ArrayList<String> arrayProductos = new ArrayList<>();
 
@@ -231,7 +233,7 @@ public class Ej10 {
 
                 //Mientras que el array no contenga el codigo de producto escrito por teclado saltará el siguiente mensaje
                 if (!arrayProductos.contains(codProducto)) {
-                    System.out.println("el codigo de producto introducido no se encuentra en la base de datos");
+                    System.out.println("El codigo de producto introducido no se encuentra en la base de datos");
                 }
 
             } while (!arrayProductos.contains(codProducto));
