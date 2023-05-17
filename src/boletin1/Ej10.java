@@ -158,6 +158,7 @@ public class Ej10 {
         }
     }
 
+
     /**
      * Este metodo nos muestra todas las categorias y nos pide que introduzcamos una
      *
@@ -204,6 +205,43 @@ public class Ej10 {
 
     }
 
-    public static
+
+    public static String getCodProducto(Connection con){
+
+        try (Statement consultaProductos = con.createStatement()) {
+
+            ResultSet listadoProductos = consultaProductos.executeQuery("SELECT productCode, productName, MSRP from products");
+
+            ArrayList<String> arrayProductos = new ArrayList<>();
+
+            while (listadoProductos.next()) {
+                System.out.printf("%s : %s : %s \n", listadoProductos.getString("productCode"),
+                        listadoProductos.getString("productName"),
+                        listadoProductos.getString("MSRP"));
+
+
+                arrayProductos.add(listadoProductos.getString("productCode"));
+            }
+
+            String codProducto;
+            //Mientras que el array no contenga el numero de producto escrito por teclado sigue pidiendolo
+            do {
+                System.out.println("Introduzca el codigo del producto: ");
+                codProducto = sc.nextLine();
+
+                //Mientras que el array no contenga el codigo de producto escrito por teclado saltará el siguiente mensaje
+                if (!arrayProductos.contains(codProducto)) {
+                    System.out.println("el codigo de producto introducido no se encuentra en la base de datos");
+                }
+
+            } while (!arrayProductos.contains(codProducto));
+
+            return codProducto;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
 
 }
