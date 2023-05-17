@@ -204,5 +204,6 @@ public class Ej10 {
 
     }
 
+    public static
 
 }
