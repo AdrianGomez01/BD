@@ -97,20 +97,55 @@ public class Ej10 {
 
     public static boolean realizarPedido() {
 
-        try (Connection con = DataBaseConnection.getInstance().getCon()) {
+        try (Connection con = DataBaseConnection.getInstance().getCon();
+             PreparedStatement consultaInsertarPedido = con.prepareStatement
+                     ("INSERT INTO Orders values (?,now(),date_add(NOW(),interval 7 DAY),null,'In Process',null,?)");
+             Statement seleccionNumPedidoMax = con.createStatement();
+        ) {
 
             int numCliente = getNumeroCliente(con);
+            double creditoCliente = getCreditoCliente(con, numCliente);
             String continuar = "Si";
 
-            //Esta es una transaccion , para que cada consulta que haga se mande al servidor, de modo que cada vez
-            // que se añada un producto se actualice en el servidor
-            con.setAutoCommit(false);
+            if (creditoCliente == 0) {
+                System.out.println("El cliente no dispone de crédito para realizar pedidos");
+            } else {
+                //Esta es una transaccion , para que cada consulta que haga se mande al servidor, de modo que cada vez
+                // que se añada un producto se actualice en el servidor
+                con.setAutoCommit(false);
 
-            while (continuar.equalsIgnoreCase("Si")){
-            String categoria = getCategoria(con);
-            String codProducto = getCodProducto(con, categoria);
-                System.out.println("¿Quiere continuar?");
-                continuar = UserDataCollector.getStringDeOpciones("¿Quiere continuar?",new String[]{"Si","No"});
+                ResultSet rsNumPedido = seleccionNumPedidoMax.executeQuery("SELECT MAX(orderNumber) from orders");
+                rsNumPedido.next();
+                int numPedido = rsNumPedido.getInt(1) + 1;
+
+                consultaInsertarPedido.setInt(1, numPedido);
+                consultaInsertarPedido.setInt(2, numCliente);
+                if (consultaInsertarPedido.executeUpdate() != 1) {
+                    con.rollback();
+                    return false;
+                }
+
+                int contadorNumLineas = 1;
+
+                while (continuar.equalsIgnoreCase("Si")) {
+                    String categoria = getCategoria(con);
+                    String codProducto = getCodProducto(con, categoria);
+                    int cantidad = getCantidadProducto(con, codProducto);
+                    if (cantidad > 0) {
+                        double precio = getPrecioProducto(con, codProducto);
+                        if (cantidad * precio < creditoCliente) {
+                            creditoCliente = creditoCliente - (cantidad * precio);
+                            //TODO insertar linea en la BD con insert update
+
+                        } else {
+                            System.out.println("No dispone de suficiente credito");
+                        }
+                    }
+
+                    System.out.println("¿Quiere continuar?");
+                    continuar = UserDataCollector.getStringDeOpciones("¿Quiere continuar?", new String[]{"Si", "No"});
+
+                }
             }
 
         } catch (SQLException e) {
@@ -265,4 +300,98 @@ public class Ej10 {
     }
 
 
+    /**
+     * Este método nos devuelve la cantidad en Stock que hay de un producto, buscándolo por su codProducto
+     *
+     * @param con
+     * @param codProducto
+     * @return
+     */
+    public static int getCantidadProducto(Connection con, String codProducto) {
+
+        int cantidadProducto = 0;
+
+        try (PreparedStatement consultaStock = con.prepareStatement
+                ("SELECT quantityInStock from products WHERE productCode = ?")) {
+
+            consultaStock.setString(1, codProducto);
+            ResultSet stockProductos = consultaStock.executeQuery();
+
+            //No necesitamos un While ya que únicamente nos va a devolver 1 fila.
+            stockProductos.next();
+            int stock = stockProductos.getInt("quantityInStock");
+            System.out.printf("Stock que queda del producto: %d\n", stock);
+
+            //Comprobamos que haya stock. En caso afirmativo pedimos cuantos productos desea comprar el cliente y
+            // controlamos que no pida más productos que los que hay en Stock y tampoco pida una cantidad negativa.
+            if (stock == 0) {
+                System.out.println("No quedan unidades del producto");
+            } else {
+                do {
+                    System.out.println("Introduzca la cantidad del producto que desea comprar:");
+                    cantidadProducto = Integer.parseInt(sc.nextLine());
+                } while (cantidadProducto > stock || cantidadProducto < 0);
+            }
+
+            return cantidadProducto;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+
+    /**
+     * Este método devuelve el crédito de un cliente según su numCliente
+     *
+     * @param con
+     * @param numCliente
+     * @return
+     */
+    public static double getCreditoCliente(Connection con, int numCliente) {
+
+        try (PreparedStatement consultaCredito = con.prepareStatement
+                ("SELECT creditLimit from customers WHERE customerNumber = ?")) {
+
+            consultaCredito.setInt(1, numCliente);
+            ResultSet creditoCliente = consultaCredito.executeQuery();
+            creditoCliente.next();
+            double credito = creditoCliente.getDouble(1);
+
+            return credito;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    /**
+     * Método que nos devuelve el precio de un producto según su código
+     *
+     * @param con
+     * @param codProducto
+     * @return
+     */
+    public static double getPrecioProducto(Connection con, String codProducto) {
+        double precioProducto = 0;
+
+        try (PreparedStatement consultaPrecio = con.prepareStatement
+                ("SELECT MSRP from products WHERE productCode = ?")) {
+
+            consultaPrecio.setString(1, codProducto);
+            ResultSet rsPrecioProductos = consultaPrecio.executeQuery();
+
+            //No necesitamos un While ya que únicamente nos va a devolver 1 fila.
+            rsPrecioProductos.next();
+            precioProducto = rsPrecioProductos.getDouble(1);
+
+            return precioProducto;
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
 }
