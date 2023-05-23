@@ -25,9 +25,12 @@ public class Ej10 {
         */
 
         realizarPedido();
-
     }
 
+    /**
+     * Este método mete nuevas lineas de productos a la BD
+     * @return
+     */
     public static boolean insertarProducto() {
         try (Connection con = DataBaseConnection.getInstance().getCon();
              PreparedStatement consultaPreparada = con.prepareStatement("INSERT INTO products values (?,?,?,?,?,?,?,?,?)");
@@ -98,8 +101,13 @@ public class Ej10 {
         }
     }
 
-    public static boolean realizarPedido() {
 
+    /**
+     * Este método hace consultas a la BD y actualiza el stock del producto y el credito del usuario según la cantidad
+     * que se compre de X producto
+     * @return
+     */
+    public static boolean realizarPedido() {
 
         try (Connection con = DataBaseConnection.getInstance().getCon();
              PreparedStatement consultaInsertarPedido = con.prepareStatement
@@ -213,6 +221,7 @@ public class Ej10 {
 
         return true;
     }
+
 
     /**
      * Este método pide un numero de cliente al usuario, comprobando si existe en la BD y devolviendolo
@@ -459,4 +468,5 @@ public class Ej10 {
         }
 
     }
+
 }
