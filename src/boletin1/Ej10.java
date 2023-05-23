@@ -1,5 +1,8 @@
 package boletin1;
 
+//ExecuteQuery solo para el select se hace con un resultset(hayq ue llamar a next().
+//ExecuteUpdate insert update y delete y se guardan en un int(nimero de filas afectadas).
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -97,10 +100,21 @@ public class Ej10 {
 
     public static boolean realizarPedido() {
 
+
         try (Connection con = DataBaseConnection.getInstance().getCon();
              PreparedStatement consultaInsertarPedido = con.prepareStatement
                      ("INSERT INTO Orders values (?,now(),date_add(NOW(),interval 7 DAY),null,'In Process',null,?)");
              Statement seleccionNumPedidoMax = con.createStatement();
+             PreparedStatement consultaLineaPedidos = con.prepareStatement
+                     ("SELECT * FROM orderdetails where orderNumber = ? and productCode = ?");
+             PreparedStatement updatePedido = con.prepareStatement
+                     ("UPDATE orderdetails SET quantityOrdered = quantityOrdered + ? where orderNumber = ? and productCode = ?");
+             PreparedStatement insertIntoPedido = con.prepareStatement
+                     ("INSERT INTO orderdetails VALUES (?,?,?,?,?)");
+             PreparedStatement updateStock = con.prepareStatement
+                     ("UPDATE products SET quantityInStock = quantityInStock - ? WHERE productCode = ?");
+             PreparedStatement updateCreditLimit = con.prepareStatement
+                     ("UPDATE customers SET creditlimit = creditlimit - ? WHERE customerNumber = ?");
         ) {
 
             int numCliente = getNumeroCliente(con);
@@ -135,17 +149,52 @@ public class Ej10 {
                         double precio = getPrecioProducto(con, codProducto);
                         if (cantidad * precio < creditoCliente) {
                             creditoCliente = creditoCliente - (cantidad * precio);
-                            //TODO insertar linea en la BD con insert update
+
+                            //Consultamos el num de pedido y cod de producto, para a continuacion comprobar que no
+                            // está duplicado ya que daria error por ejemplo si añadimos 10 del producto A y a
+                            // continuacion volvemos a añadir otros 10 del producto A
+                            consultaLineaPedidos.setInt(1, numPedido);
+                            consultaLineaPedidos.setString(2, codProducto);
+
+                            ResultSet rsLineaPedidos = consultaLineaPedidos.executeQuery();
+
+                            //Si encuentra un registro ya introducido lo actualiza, en caso contrario inserta uno nuevo
+                            if (rsLineaPedidos.next()) {
+                                updatePedido.setInt(1, cantidad);
+                                updatePedido.setInt(2, numPedido);
+                                updatePedido.setString(3, codProducto);
+
+                                int resultadoUpdate = updatePedido.executeUpdate();
+
+                            } else {
+                                insertIntoPedido.setInt(1, numPedido);
+                                insertIntoPedido.setString(2, codProducto);
+                                insertIntoPedido.setInt(3, cantidad);
+                                insertIntoPedido.setDouble(4, precio);
+                                insertIntoPedido.setInt(5, contadorNumLineas++);
+
+                                int resultadoInsert = insertIntoPedido.executeUpdate();
+                            }
+
+                            updateStock.setInt(1, cantidad);
+                            updateStock.setString(2, codProducto);
+                            int resultadoUpdateStock = updateStock.executeUpdate();
+
+                            updateCreditLimit.setDouble(1, cantidad * precio);
+                            updateCreditLimit.setInt(2, numCliente);
+                            int resultadoUpdateCreditLimit = updateCreditLimit.executeUpdate();
+
+                            System.out.println("El producto ha sido añadido al carrito");
 
                         } else {
                             System.out.println("No dispone de suficiente credito");
                         }
                     }
 
-                    System.out.println("¿Quiere continuar?");
                     continuar = UserDataCollector.getStringDeOpciones("¿Quiere continuar?", new String[]{"Si", "No"});
 
                 }
+                con.commit();
             }
 
         } catch (SQLException e) {
@@ -330,6 +379,12 @@ public class Ej10 {
                 do {
                     System.out.println("Introduzca la cantidad del producto que desea comprar:");
                     cantidadProducto = Integer.parseInt(sc.nextLine());
+                    if (cantidadProducto > stock) {
+                        System.out.println("No queda suficiente Stock del producto");
+                    }
+                    if (cantidadProducto < 0) {
+                        System.out.println("Debe comprar al menos una unidad del producto");
+                    }
                 } while (cantidadProducto > stock || cantidadProducto < 0);
             }
 
