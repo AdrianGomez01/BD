@@ -117,91 +117,101 @@ public class Ej10 {
                      ("UPDATE customers SET creditlimit = creditlimit - ? WHERE customerNumber = ?");
         ) {
 
-            int numCliente = getNumeroCliente(con);
-            double creditoCliente = getCreditoCliente(con, numCliente);
-            String continuar = "Si";
+            try {
+                int numCliente = getNumeroCliente(con);
+                double creditoCliente = getCreditoCliente(con, numCliente);
+                String continuar = "Si";
 
-            if (creditoCliente == 0) {
-                System.out.println("El cliente no dispone de crédito para realizar pedidos");
-            } else {
-                //Esta es una transaccion , para que cada consulta que haga se mande al servidor, de modo que cada vez
-                // que se añada un producto se actualice en el servidor
-                con.setAutoCommit(false);
+                if (creditoCliente == 0) {
+                    System.out.println("El cliente no dispone de crédito para realizar pedidos");
+                } else {
+                    //Esta es una transaccion , para que cada consulta que haga se mande al servidor, de modo que cada vez
+                    // que se añada un producto se actualice en el servidor
+                    con.setAutoCommit(false);
 
-                ResultSet rsNumPedido = seleccionNumPedidoMax.executeQuery("SELECT MAX(orderNumber) from orders");
-                rsNumPedido.next();
-                int numPedido = rsNumPedido.getInt(1) + 1;
+                    ResultSet rsNumPedido = seleccionNumPedidoMax.executeQuery("SELECT MAX(orderNumber) from orders");
+                    rsNumPedido.next();
+                    int numPedido = rsNumPedido.getInt(1) + 1;
 
-                consultaInsertarPedido.setInt(1, numPedido);
-                consultaInsertarPedido.setInt(2, numCliente);
-                if (consultaInsertarPedido.executeUpdate() != 1) {
-                    con.rollback();
-                    return false;
-                }
-
-                int contadorNumLineas = 1;
-
-                while (continuar.equalsIgnoreCase("Si")) {
-                    String categoria = getCategoria(con);
-                    String codProducto = getCodProducto(con, categoria);
-                    int cantidad = getCantidadProducto(con, codProducto);
-                    if (cantidad > 0) {
-                        double precio = getPrecioProducto(con, codProducto);
-                        if (cantidad * precio < creditoCliente) {
-                            creditoCliente = creditoCliente - (cantidad * precio);
-
-                            //Consultamos el num de pedido y cod de producto, para a continuacion comprobar que no
-                            // está duplicado ya que daria error por ejemplo si añadimos 10 del producto A y a
-                            // continuacion volvemos a añadir otros 10 del producto A
-                            consultaLineaPedidos.setInt(1, numPedido);
-                            consultaLineaPedidos.setString(2, codProducto);
-
-                            ResultSet rsLineaPedidos = consultaLineaPedidos.executeQuery();
-
-                            //Si encuentra un registro ya introducido lo actualiza, en caso contrario inserta uno nuevo
-                            if (rsLineaPedidos.next()) {
-                                updatePedido.setInt(1, cantidad);
-                                updatePedido.setInt(2, numPedido);
-                                updatePedido.setString(3, codProducto);
-
-                                int resultadoUpdate = updatePedido.executeUpdate();
-
-                            } else {
-                                insertIntoPedido.setInt(1, numPedido);
-                                insertIntoPedido.setString(2, codProducto);
-                                insertIntoPedido.setInt(3, cantidad);
-                                insertIntoPedido.setDouble(4, precio);
-                                insertIntoPedido.setInt(5, contadorNumLineas++);
-
-                                int resultadoInsert = insertIntoPedido.executeUpdate();
-                            }
-
-                            updateStock.setInt(1, cantidad);
-                            updateStock.setString(2, codProducto);
-                            int resultadoUpdateStock = updateStock.executeUpdate();
-
-                            updateCreditLimit.setDouble(1, cantidad * precio);
-                            updateCreditLimit.setInt(2, numCliente);
-                            int resultadoUpdateCreditLimit = updateCreditLimit.executeUpdate();
-
-                            System.out.println("El producto ha sido añadido al carrito");
-
-                        } else {
-                            System.out.println("No dispone de suficiente credito");
-                        }
+                    consultaInsertarPedido.setInt(1, numPedido);
+                    consultaInsertarPedido.setInt(2, numCliente);
+                    if (consultaInsertarPedido.executeUpdate() != 1) {
+                        con.rollback();
+                        return false;
                     }
 
-                    continuar = UserDataCollector.getStringDeOpciones("¿Quiere continuar?", new String[]{"Si", "No"});
+                    int contadorNumLineas = 1;
 
+                    while (continuar.equalsIgnoreCase("Si")) {
+                        String categoria = getCategoria(con);
+                        String codProducto = getCodProducto(con, categoria);
+                        int cantidad = getCantidadProducto(con, codProducto);
+                        if (cantidad > 0) {
+                            double precio = getPrecioProducto(con, codProducto);
+                            if (cantidad * precio < creditoCliente) {
+                                creditoCliente = creditoCliente - (cantidad * precio);
+
+                                //Consultamos el num de pedido y cod de producto, para a continuacion comprobar que no
+                                // está duplicado ya que daria error por ejemplo si añadimos 10 del producto A y a
+                                // continuacion volvemos a añadir otros 10 del producto A
+                                consultaLineaPedidos.setInt(1, numPedido);
+                                consultaLineaPedidos.setString(2, codProducto);
+
+                                ResultSet rsLineaPedidos = consultaLineaPedidos.executeQuery();
+
+                                //Si encuentra un registro ya introducido lo actualiza, en caso contrario inserta uno nuevo
+                                if (rsLineaPedidos.next()) {
+                                    updatePedido.setInt(1, cantidad);
+                                    updatePedido.setInt(2, numPedido);
+                                    updatePedido.setString(3, codProducto);
+
+                                    int resultadoUpdate = updatePedido.executeUpdate();
+
+                                } else {
+                                    insertIntoPedido.setInt(1, numPedido);
+                                    insertIntoPedido.setString(2, codProducto);
+                                    insertIntoPedido.setInt(3, cantidad);
+                                    insertIntoPedido.setDouble(4, precio);
+                                    insertIntoPedido.setInt(5, contadorNumLineas++);
+
+                                    int resultadoInsert = insertIntoPedido.executeUpdate();
+                                }
+
+                                updateStock.setInt(1, cantidad);
+                                updateStock.setString(2, codProducto);
+                                int resultadoUpdateStock = updateStock.executeUpdate();
+
+                                updateCreditLimit.setDouble(1, cantidad * precio);
+                                updateCreditLimit.setInt(2, numCliente);
+                                int resultadoUpdateCreditLimit = updateCreditLimit.executeUpdate();
+
+                                System.out.println("El producto ha sido añadido al carrito");
+
+                            } else {
+                                System.out.println("No dispone de suficiente credito");
+                            }
+                        }
+
+                        continuar = UserDataCollector.getStringDeOpciones("¿Quiere continuar?", new String[]{"Si", "No"});
+
+                    }
+                    con.commit();
+                    System.out.println("Gracias por su compra");
                 }
-                con.commit();
-            }
 
+            } catch (SQLException e) {
+                try {
+                    con.rollback();
+                } catch (SQLException ex) {
+                    System.out.println("Ha ocurrido el error: " + e.getMessage());
+                    return false;
+                }
+            }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            System.out.println("No se ha podido realizar la conexion");
         }
 
-        return false;
+        return true;
     }
 
     /**
